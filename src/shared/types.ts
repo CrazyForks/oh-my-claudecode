@@ -59,6 +59,7 @@ export interface PluginConfig {
     ultrawork?: string[];
     search?: string[];
     analyze?: string[];
+    ultrathink?: string[];
   };
 }
 

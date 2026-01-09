@@ -53,7 +53,8 @@ export const DEFAULT_CONFIG: PluginConfig = {
   magicKeywords: {
     ultrawork: ['ultrawork', 'ulw', 'uw'],
     search: ['search', 'find', 'locate'],
-    analyze: ['analyze', 'investigate', 'examine']
+    analyze: ['analyze', 'investigate', 'examine'],
+    ultrathink: ['ultrathink', 'think', 'reason', 'ponder']
   }
 };
 
@@ -357,7 +358,8 @@ export function generateConfigSchema(): object {
         properties: {
           ultrawork: { type: 'array', items: { type: 'string' } },
           search: { type: 'array', items: { type: 'string' } },
-          analyze: { type: 'array', items: { type: 'string' } }
+          analyze: { type: 'array', items: { type: 'string' } },
+          ultrathink: { type: 'array', items: { type: 'string' } }
         }
       }
     }

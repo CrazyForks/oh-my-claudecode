@@ -104,6 +104,42 @@ const analyzeEnhancement: MagicKeyword = {
 };
 
 /**
+ * Ultrathink mode enhancement
+ * Activates extended thinking and deep reasoning
+ */
+const ultrathinkEnhancement: MagicKeyword = {
+  triggers: ['ultrathink', 'think', 'reason', 'ponder'],
+  description: 'Activates extended thinking mode for deep reasoning',
+  action: (prompt: string) => {
+    // Check if ultrathink-related triggers are present
+    const hasThinkCommand = /\b(ultrathink|think|reason|ponder)\b/i.test(prompt);
+
+    if (!hasThinkCommand) {
+      return prompt;
+    }
+
+    const cleanPrompt = removeTriggerWords(prompt, ['ultrathink', 'think', 'reason', 'ponder']);
+
+    return `[ULTRATHINK MODE - EXTENDED REASONING ACTIVATED]
+
+${cleanPrompt}
+
+## Deep Thinking Instructions
+- Take your time to think through this problem thoroughly
+- Consider multiple approaches before settling on a solution
+- Identify edge cases, risks, and potential issues
+- Think step-by-step through complex logic
+- Question your assumptions
+- Consider what could go wrong
+- Evaluate trade-offs between different solutions
+- Look for patterns from similar problems
+
+IMPORTANT: Do not rush. Quality of reasoning matters more than speed.
+Use maximum cognitive effort before responding.`;
+  }
+};
+
+/**
  * Remove trigger words from a prompt
  */
 function removeTriggerWords(prompt: string, triggers: string[]): string {
@@ -121,7 +157,8 @@ function removeTriggerWords(prompt: string, triggers: string[]): string {
 export const builtInMagicKeywords: MagicKeyword[] = [
   ultraworkEnhancement,
   searchEnhancement,
-  analyzeEnhancement
+  analyzeEnhancement,
+  ultrathinkEnhancement
 ];
 
 /**
@@ -148,6 +185,12 @@ export function createMagicKeywordProcessor(config?: PluginConfig['magicKeywords
       const analyze = keywords.find(k => k.triggers.includes('analyze'));
       if (analyze) {
         analyze.triggers = config.analyze;
+      }
+    }
+    if (config.ultrathink) {
+      const ultrathink = keywords.find(k => k.triggers.includes('ultrathink'));
+      if (ultrathink) {
+        ultrathink.triggers = config.ultrathink;
       }
     }
   }
@@ -190,6 +233,10 @@ export function detectMagicKeywords(prompt: string, config?: PluginConfig['magic
     if (config.analyze) {
       const analyze = keywords.find(k => k.triggers.includes('analyze'));
       if (analyze) analyze.triggers = config.analyze;
+    }
+    if (config.ultrathink) {
+      const ultrathink = keywords.find(k => k.triggers.includes('ultrathink'));
+      if (ultrathink) ultrathink.triggers = config.ultrathink;
     }
   }
 
