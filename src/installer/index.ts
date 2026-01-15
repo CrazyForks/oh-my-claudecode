@@ -39,7 +39,7 @@ export const SETTINGS_FILE = join(CLAUDE_CONFIG_DIR, 'settings.json');
 export const VERSION_FILE = join(CLAUDE_CONFIG_DIR, '.sisyphus-version.json');
 
 /** Current version */
-export const VERSION = '2.0.6';
+export const VERSION = '2.2.1';
 
 /** Installation result */
 export interface InstallResult {
@@ -1995,6 +1995,7 @@ All agent names require the \`oh-my-claude-sisyphus:\` prefix when calling via T
 |---------|-------------|
 | \`/ultrawork <task>\` | Maximum performance mode - parallel everything |
 | \`/deepsearch <query>\` | Thorough codebase search |
+| \`/deepinit [path]\` | Index codebase recursively with hierarchical AGENTS.md files |
 | \`/analyze <target>\` | Deep analysis and investigation |
 | \`/plan <description>\` | Start planning session with Prometheus |
 | \`/review [plan-path]\` | Review a plan with Momus |

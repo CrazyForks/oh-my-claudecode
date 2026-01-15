@@ -138,7 +138,6 @@ describe('Installer Constants', () => {
         'prometheus/skill.md',
         'ralph-loop/skill.md',
         'cancel-ralph.md',
-        'update.md',
       ];
 
       for (const command of expectedCommands) {
@@ -182,7 +181,6 @@ describe('Installer Constants', () => {
         'review/skill.md',
         'prometheus/skill.md',
         'ralph-loop/skill.md',
-        'update.md',
       ];
 
       for (const command of commandsWithArgs) {
@@ -229,7 +227,8 @@ describe('Installer Constants', () => {
       ];
 
       for (const agent of coreAgents) {
-        expect(CLAUDE_MD_CONTENT).toMatch(new RegExp(`\`${agent}\``));
+        // Agents are prefixed with oh-my-claude-sisyphus: in the content
+        expect(CLAUDE_MD_CONTENT).toMatch(new RegExp(`oh-my-claude-sisyphus:${agent}`));
       }
     });
 
@@ -251,7 +250,7 @@ describe('Installer Constants', () => {
         '/prometheus',
         '/ralph-loop',
         '/cancel-ralph',
-        '/update',
+        '/deepinit',
       ];
 
       for (const command of commands) {
@@ -275,7 +274,7 @@ describe('Installer Constants', () => {
 
     it('should match package.json version', () => {
       // This is a runtime check - VERSION should match the package.json
-      expect(VERSION).toBe('2.0.6');
+      expect(VERSION).toBe('2.2.1');
     });
   });
 
