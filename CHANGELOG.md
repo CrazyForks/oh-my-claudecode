@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.10] - 2026-01-23
+
+### Added
+- **omc-setup**: GitHub star prompt after setup completion (#82)
+  - Uses AskUserQuestion for clickable UI
+  - Falls back to URL display if `gh` CLI unavailable
+- **HUD**: Optional visual progress bars for context and rate limits (#81)
+  - New `useBars` config option in HudElementConfig
+  - Enabled by default in focused/full/dense presets
+  - Format: `ctx:[████░░░░░░]67%` and `5h:[████░░░░░░]45%`
+
 ## [3.3.8] - 2026-01-23
 
 ### Added
