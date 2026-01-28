@@ -14,7 +14,10 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { allCustomTools } from '../tools/index.js';
+// Only import LSP tools - no native dependencies
+// AST tools (@ast-grep/napi) and python_repl (better-sqlite3) require native modules
+// which can't be bundled and won't exist in plugin cache
+import { lspTools } from '../tools/lsp-tools.js';
 import { z } from 'zod';
 
 // Convert Zod schema to JSON Schema for MCP
@@ -113,7 +116,7 @@ const server = new Server(
 // List available tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools: allCustomTools.map(tool => ({
+    tools: lspTools.map(tool => ({
       name: tool.name,
       description: tool.description,
       inputSchema: zodToJsonSchema(tool.schema),
@@ -125,7 +128,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
-  const tool = allCustomTools.find(t => t.name === name);
+  const tool = lspTools.find(t => t.name === name);
   if (!tool) {
     return {
       content: [{ type: 'text', text: `Unknown tool: ${name}` }],
@@ -134,7 +137,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   try {
-    const result = await tool.handler(args);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await (tool.handler as (args: any) => Promise<{ content: Array<{ type: 'text'; text: string }> }>)(args ?? {});
     return {
       content: result.content,
       isError: false,
