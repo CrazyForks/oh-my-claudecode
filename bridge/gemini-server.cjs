@@ -14100,6 +14100,7 @@ function updateJobStatus(provider, jobId, updates) {
 
 // src/mcp/prompt-persistence.ts
 var _dbInitAttempted = false;
+var jobWorkingDirs = /* @__PURE__ */ new Map();
 function ensureJobDb(workingDirectory) {
   if (_dbInitAttempted || isJobDbInitialized()) return;
   _dbInitAttempted = true;
@@ -14222,6 +14223,9 @@ function getStatusFilePath(provider, slug, promptId, workingDirectory) {
 }
 function writeJobStatus(status, workingDirectory) {
   ensureJobDb(workingDirectory);
+  if (status.status === "spawned" && workingDirectory) {
+    jobWorkingDirs.set(status.jobId, workingDirectory);
+  }
   try {
     const promptsDir = getPromptsDir(workingDirectory);
     (0, import_fs4.mkdirSync)(promptsDir, { recursive: true });
@@ -14235,6 +14239,9 @@ function writeJobStatus(status, workingDirectory) {
   } catch (err) {
     console.warn(`[prompt-persistence] Failed to write job status: ${err.message}`);
   }
+}
+function getJobWorkingDir(jobId) {
+  return jobWorkingDirs.get(jobId);
 }
 function readJobStatus(provider, slug, promptId, workingDirectory) {
   ensureJobDb(workingDirectory);
@@ -14869,11 +14876,11 @@ function textResult(text, isError = false) {
     ...isError && { isError: true }
   };
 }
-function findJobStatusFile(provider, jobId) {
+function findJobStatusFile(provider, jobId, workingDirectory) {
   if (!/^[0-9a-f]{8}$/i.test(jobId)) {
     return void 0;
   }
-  const promptsDir = getPromptsDir();
+  const promptsDir = getPromptsDir(workingDirectory);
   if (!(0, import_fs7.existsSync)(promptsDir)) return void 0;
   try {
     const files = (0, import_fs7.readdirSync)(promptsDir);
@@ -14923,6 +14930,7 @@ async function handleWaitForJob(provider, jobId, timeoutMs = 36e5) {
   const effectiveTimeout = Math.max(1e3, Math.min(timeoutMs, 36e5));
   const deadline = Date.now() + effectiveTimeout;
   let pollDelay = 500;
+  let notFoundCount = 0;
   while (Date.now() < deadline) {
     if (isJobDbInitialized()) {
       const status2 = getJob(provider, jobId);
@@ -14956,9 +14964,16 @@ async function handleWaitForJob(provider, jobId, timeoutMs = 36e5) {
         continue;
       }
     }
-    const found = findJobStatusFile(provider, jobId);
+    const jobDir = getJobWorkingDir(jobId);
+    const found = findJobStatusFile(provider, jobId, jobDir);
     if (!found) {
-      return textResult(`No job found with ID: ${jobId}`, true);
+      notFoundCount++;
+      if (notFoundCount >= 10) {
+        return textResult(`No job found with ID: ${jobId}`, true);
+      }
+      await new Promise((resolve5) => setTimeout(resolve5, pollDelay));
+      pollDelay = Math.min(pollDelay * 1.5, 2e3);
+      continue;
     }
     const status = readJobStatus(provider, found.slug, jobId);
     if (!status) {
@@ -15021,7 +15036,8 @@ async function handleCheckJobStatus(provider, jobId) {
       return textResult(lines2.filter(Boolean).join("\n"));
     }
   }
-  const found = findJobStatusFile(provider, jobId);
+  const jobDir = getJobWorkingDir(jobId);
+  const found = findJobStatusFile(provider, jobId, jobDir);
   if (!found) {
     return textResult(`No job found with ID: ${jobId}`, true);
   }
@@ -15056,7 +15072,8 @@ async function handleKillJob(provider, jobId, signal = "SIGTERM") {
       true
     );
   }
-  const found = findJobStatusFile(provider, jobId);
+  const jobDir = getJobWorkingDir(jobId);
+  const found = findJobStatusFile(provider, jobId, jobDir);
   if (!found) {
     if (isJobDbInitialized()) {
       const dbJob = getJob(provider, jobId);

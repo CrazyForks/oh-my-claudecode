@@ -17,6 +17,7 @@ import {
   listActiveJobs,
   writeJobStatus,
   getPromptsDir,
+  getJobWorkingDir,
 } from './prompt-persistence.js';
 import type { JobStatus } from './prompt-persistence.js';
 import { existsSync, readdirSync, readFileSync } from 'fs';
@@ -59,13 +60,14 @@ function textResult(text: string, isError = false): { content: Array<{ type: 'te
 export function findJobStatusFile(
   provider: 'codex' | 'gemini',
   jobId: string,
+  workingDirectory?: string,
 ): { statusPath: string; slug: string } | undefined {
   // Validate jobId format: must be 8-char hex (from generatePromptId)
   if (!/^[0-9a-f]{8}$/i.test(jobId)) {
     return undefined;
   }
 
-  const promptsDir = getPromptsDir();
+  const promptsDir = getPromptsDir(workingDirectory);
   if (!existsSync(promptsDir)) return undefined;
 
   try {
@@ -147,6 +149,7 @@ export async function handleWaitForJob(
   const effectiveTimeout = Math.max(1000, Math.min(timeoutMs, 3_600_000));
   const deadline = Date.now() + effectiveTimeout;
   let pollDelay = 500;
+  let notFoundCount = 0;
 
   while (Date.now() < deadline) {
     // Try SQLite first if available
@@ -189,10 +192,18 @@ export async function handleWaitForJob(
       }
     }
 
-    const found = findJobStatusFile(provider, jobId);
+    const jobDir = getJobWorkingDir(provider, jobId);
+    const found = findJobStatusFile(provider, jobId, jobDir);
 
     if (!found) {
-      return textResult(`No job found with ID: ${jobId}`, true);
+      // Job may not be written yet (async SQLite init race) — retry with backoff
+      notFoundCount++;
+      if (notFoundCount >= 10) {
+        return textResult(`No job found with ID: ${jobId}`, true);
+      }
+      await new Promise(resolve => setTimeout(resolve, pollDelay));
+      pollDelay = Math.min(pollDelay * 1.5, 2000);
+      continue;
     }
 
     const status = readJobStatus(provider, found.slug, jobId);
@@ -278,7 +289,8 @@ export async function handleCheckJobStatus(
     }
   }
 
-  const found = findJobStatusFile(provider, jobId);
+  const jobDir = getJobWorkingDir(provider, jobId);
+  const found = findJobStatusFile(provider, jobId, jobDir);
 
   if (!found) {
     return textResult(`No job found with ID: ${jobId}`, true);
@@ -328,7 +340,8 @@ export async function handleKillJob(
     );
   }
 
-  const found = findJobStatusFile(provider, jobId);
+  const jobDir = getJobWorkingDir(provider, jobId);
+  const found = findJobStatusFile(provider, jobId, jobDir);
 
   if (!found) {
     // SQLite fallback: try to find job in database when JSON file is missing

@@ -14,6 +14,9 @@ import { initJobDb, isJobDbInitialized, upsertJob, getJob, getActiveJobs as getA
 // yet, isJobDbInitialized() returns false and callers use JSON fallback.
 // This is best-effort: the first 1-2 status writes may be JSON-only.
 let _dbInitAttempted = false;
+// In-memory index: jobId → workingDirectory used at creation time.
+// Allows job management handlers to find JSON status files for cross-directory jobs.
+const jobWorkingDirs = new Map();
 function ensureJobDb(workingDirectory) {
     if (_dbInitAttempted || isJobDbInitialized())
         return;
@@ -198,6 +201,10 @@ export function getStatusFilePath(provider, slug, promptId, workingDirectory) {
  */
 export function writeJobStatus(status, workingDirectory) {
     ensureJobDb(workingDirectory);
+    // Track the working directory for this job on initial creation
+    if (status.status === 'spawned' && workingDirectory) {
+        jobWorkingDirs.set(status.jobId, workingDirectory);
+    }
     try {
         const promptsDir = getPromptsDir(workingDirectory);
         mkdirSync(promptsDir, { recursive: true });
@@ -213,6 +220,13 @@ export function writeJobStatus(status, workingDirectory) {
     catch (err) {
         console.warn(`[prompt-persistence] Failed to write job status: ${err.message}`);
     }
+}
+/**
+ * Look up the working directory that was used when a job was created.
+ * Returns undefined if the job was created in the server's CWD (no override).
+ */
+export function getJobWorkingDir(jobId) {
+    return jobWorkingDirs.get(jobId);
 }
 /**
  * Read job status from disk

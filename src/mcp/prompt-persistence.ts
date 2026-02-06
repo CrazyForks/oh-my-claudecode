@@ -17,6 +17,11 @@ import { initJobDb, isJobDbInitialized, upsertJob, getJob, getActiveJobs as getA
 // This is best-effort: the first 1-2 status writes may be JSON-only.
 let _dbInitAttempted = false;
 
+// In-memory index: provider:jobId → workingDirectory used at creation time.
+// Allows job management handlers to find JSON status files for cross-directory jobs.
+// Keyed by provider:jobId to avoid collisions (8-hex IDs are short).
+const jobWorkingDirs = new Map<string, string>();
+
 function ensureJobDb(workingDirectory?: string): void {
   if (_dbInitAttempted || isJobDbInitialized()) return;
   _dbInitAttempted = true;
@@ -300,6 +305,15 @@ export function getStatusFilePath(provider: 'codex' | 'gemini', slug: string, pr
  */
 export function writeJobStatus(status: JobStatus, workingDirectory?: string): void {
   ensureJobDb(workingDirectory);
+  // Track the working directory for this job on initial creation
+  const mapKey = `${status.provider}:${status.jobId}`;
+  if (status.status === 'spawned' && workingDirectory) {
+    jobWorkingDirs.set(mapKey, workingDirectory);
+  }
+  // Clean up map entry on terminal states to prevent unbounded growth
+  if (status.status === 'completed' || status.status === 'failed' || status.status === 'timeout') {
+    jobWorkingDirs.delete(mapKey);
+  }
   try {
     const promptsDir = getPromptsDir(workingDirectory);
     mkdirSync(promptsDir, { recursive: true });
@@ -317,6 +331,14 @@ export function writeJobStatus(status: JobStatus, workingDirectory?: string): vo
   } catch (err) {
     console.warn(`[prompt-persistence] Failed to write job status: ${(err as Error).message}`);
   }
+}
+
+/**
+ * Look up the working directory that was used when a job was created.
+ * Returns undefined if the job was created in the server's CWD (no override).
+ */
+export function getJobWorkingDir(provider: 'codex' | 'gemini', jobId: string): string | undefined {
+  return jobWorkingDirs.get(`${provider}:${jobId}`);
 }
 
 /**

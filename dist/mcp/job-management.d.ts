@@ -19,7 +19,7 @@
  * - 1 match: returns { statusPath, slug }
  * - Many matches: prefers non-terminal (active) status, then newest spawnedAt
  */
-export declare function findJobStatusFile(provider: 'codex' | 'gemini', jobId: string): {
+export declare function findJobStatusFile(provider: 'codex' | 'gemini', jobId: string, workingDirectory?: string): {
     statusPath: string;
     slug: string;
 } | undefined;

@@ -122,6 +122,11 @@ export declare function getStatusFilePath(provider: 'codex' | 'gemini', slug: st
  */
 export declare function writeJobStatus(status: JobStatus, workingDirectory?: string): void;
 /**
+ * Look up the working directory that was used when a job was created.
+ * Returns undefined if the job was created in the server's CWD (no override).
+ */
+export declare function getJobWorkingDir(jobId: string): string | undefined;
+/**
  * Read job status from disk
  */
 export declare function readJobStatus(provider: 'codex' | 'gemini', slug: string, promptId: string, workingDirectory?: string): JobStatus | undefined;
