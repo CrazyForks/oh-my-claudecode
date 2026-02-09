@@ -642,8 +642,8 @@ World`);
         it('should return ecomode over ultrawork when both present', () => {
             expect(getAllKeywords('ulw eco fix errors')).toEqual(['ecomode']);
         });
-        it('should return ultrapilot over autopilot when both present', () => {
-            expect(getAllKeywords('autopilot ultrapilot build')).toEqual(['ultrapilot']);
+        it('should return team over autopilot when both present (replaces deprecated ultrapilot)', () => {
+            expect(getAllKeywords('autopilot team 3 agents build')).toEqual(['team']);
         });
         it('should return ralph with ultrawork (not mutually exclusive)', () => {
             const result = getAllKeywords('ralph ultrawork fix');
@@ -684,6 +684,119 @@ World`);
             expect(result).toContain('ralph');
             expect(result).toContain('tdd');
             expect(result).toContain('research');
+        });
+        describe('team mode (replaces deprecated swarm/ultrapilot)', () => {
+            it('should detect team keyword with agent count', () => {
+                const result = detectKeywordsWithType('team 5 agents fix errors');
+                const teamMatch = result.find((r) => r.type === 'team');
+                expect(teamMatch).toBeDefined();
+            });
+            it('should detect team mode phrase', () => {
+                const result = detectKeywordsWithType('use team mode to fix this');
+                const teamMatch = result.find((r) => r.type === 'team');
+                expect(teamMatch).toBeDefined();
+            });
+            it('should route deprecated swarm N agents to team', () => {
+                const result = detectKeywordsWithType('swarm 5 agents fix errors');
+                const teamMatch = result.find((r) => r.type === 'team');
+                expect(teamMatch).toBeDefined();
+                // Should NOT have swarm as a separate type (swarm is deprecated and routed to team)
+                const swarmMatch = result.find((r) => r.type === 'swarm');
+                expect(swarmMatch).toBeUndefined();
+            });
+            it('should route deprecated coordinated agents to team', () => {
+                const result = detectKeywordsWithType('use coordinated agents to fix');
+                const teamMatch = result.find((r) => r.type === 'team');
+                expect(teamMatch).toBeDefined();
+            });
+            it('should route deprecated ultrapilot to team', () => {
+                const result = detectKeywordsWithType('ultrapilot this task');
+                const teamMatch = result.find((r) => r.type === 'team');
+                expect(teamMatch).toBeDefined();
+                // Should NOT have ultrapilot as a separate type (ultrapilot is deprecated and routed to team)
+                const ultrapilotMatch = result.find((r) => r.type === 'ultrapilot');
+                expect(ultrapilotMatch).toBeUndefined();
+            });
+            it('should route deprecated ultra-pilot to team', () => {
+                const result = detectKeywordsWithType('use ultra-pilot mode');
+                const teamMatch = result.find((r) => r.type === 'team');
+                expect(teamMatch).toBeDefined();
+            });
+            it('should route deprecated parallel build to team', () => {
+                const result = detectKeywordsWithType('parallel build this feature');
+                const teamMatch = result.find((r) => r.type === 'team');
+                expect(teamMatch).toBeDefined();
+            });
+            it('should route deprecated swarm build to team', () => {
+                const result = detectKeywordsWithType('swarm build this project');
+                const teamMatch = result.find((r) => r.type === 'team');
+                expect(teamMatch).toBeDefined();
+            });
+            it('should return team over autopilot when both present', () => {
+                const result = getAllKeywords('autopilot team 3 agents fix');
+                expect(result).toContain('team');
+                expect(result).not.toContain('autopilot');
+            });
+            it('should return team as primary when team and autopilot present', () => {
+                const primary = getPrimaryKeyword('autopilot team 3 agents fix');
+                expect(primary?.type).toBe('team');
+            });
+            it('should still return ralph over team', () => {
+                const primary = getPrimaryKeyword('ralph team 3 agents fix');
+                expect(primary?.type).toBe('ralph');
+            });
+            it('should allow team with ralph (not mutually exclusive)', () => {
+                const result = getAllKeywords('ralph team 3 agents fix');
+                expect(result).toContain('ralph');
+                expect(result).toContain('team');
+            });
+            it('should allow team with ultrawork (not mutually exclusive)', () => {
+                const result = getAllKeywords('team 3 agents ultrawork fix');
+                expect(result).toContain('team');
+                expect(result).toContain('ultrawork');
+            });
+        });
+        describe('existing modes unaffected by deprecation', () => {
+            it('should still detect ralph correctly', () => {
+                const result = getPrimaryKeyword('ralph this task until done');
+                expect(result?.type).toBe('ralph');
+            });
+            it('should still detect autopilot correctly', () => {
+                const result = getPrimaryKeyword('autopilot this implementation');
+                expect(result?.type).toBe('autopilot');
+            });
+            it('should still detect ultrawork correctly', () => {
+                const result = getPrimaryKeyword('ulw fix all errors');
+                expect(result?.type).toBe('ultrawork');
+            });
+            it('should still detect ecomode correctly', () => {
+                const result = getPrimaryKeyword('eco fix build');
+                expect(result?.type).toBe('ecomode');
+            });
+            it('should still detect pipeline correctly', () => {
+                const result = getPrimaryKeyword('pipeline these tasks');
+                expect(result?.type).toBe('pipeline');
+            });
+            it('should still detect tdd correctly', () => {
+                const result = getPrimaryKeyword('tdd this feature');
+                expect(result?.type).toBe('tdd');
+            });
+            it('should still detect research correctly', () => {
+                const result = getPrimaryKeyword('research this topic');
+                expect(result?.type).toBe('research');
+            });
+            it('should still detect deepsearch correctly', () => {
+                const result = getPrimaryKeyword('deepsearch for files');
+                expect(result?.type).toBe('deepsearch');
+            });
+            it('should still detect analyze correctly', () => {
+                const result = getPrimaryKeyword('investigate the issue');
+                expect(result?.type).toBe('analyze');
+            });
+            it('should still detect ultrathink correctly', () => {
+                const result = getPrimaryKeyword('ultrathink about this');
+                expect(result?.type).toBe('ultrathink');
+            });
         });
     });
 });

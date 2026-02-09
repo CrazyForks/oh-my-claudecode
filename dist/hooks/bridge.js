@@ -110,9 +110,8 @@ function processKeywordDetector(input) {
             // These are handled by UserPromptSubmit hook for skill invocation
             case "cancel":
             case "autopilot":
-            case "ultrapilot":
+            case "team":
             case "ecomode":
-            case "swarm":
             case "pipeline":
             case "ralplan":
             case "plan":

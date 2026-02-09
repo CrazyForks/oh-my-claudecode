@@ -232,14 +232,14 @@ describe('Keyword Detector', () => {
       }
     });
 
-    it('should detect ultrapilot keyword', () => {
+    it('should detect ultrapilot keyword (routed to team)', () => {
       const detected = detectKeywordsWithType('use ultrapilot for this');
       expect(detected).toHaveLength(1);
-      expect(detected[0].type).toBe('ultrapilot');
+      expect(detected[0].type).toBe('team');
       expect(detected[0].keyword).toBe('ultrapilot');
     });
 
-    it('should detect ultrapilot patterns', () => {
+    it('should detect team patterns (replaces deprecated ultrapilot)', () => {
       const patterns = [
         'ultrapilot this project',
         'parallel build the app',
@@ -248,8 +248,8 @@ describe('Keyword Detector', () => {
       for (const pattern of patterns) {
         const detected = detectKeywordsWithType(pattern);
         expect(detected.length).toBeGreaterThan(0);
-        const hasUltrapilot = detected.some(d => d.type === 'ultrapilot');
-        expect(hasUltrapilot).toBe(true);
+        const hasTeam = detected.some(d => d.type === 'team');
+        expect(hasTeam).toBe(true);
       }
     });
 
@@ -270,17 +270,17 @@ describe('Keyword Detector', () => {
       }
     });
 
-    it('should detect swarm keyword', () => {
+    it('should detect swarm keyword (routed to team)', () => {
       const detected = detectKeywordsWithType('swarm 5 agents to fix this');
       expect(detected).toHaveLength(1);
-      expect(detected[0].type).toBe('swarm');
+      expect(detected[0].type).toBe('team');
       expect(detected[0].keyword).toBe('swarm 5 agents');
     });
 
-    it('should detect coordinated agents pattern', () => {
+    it('should detect coordinated agents pattern (routed to team)', () => {
       const detected = detectKeywordsWithType('use coordinated agents');
       expect(detected).toHaveLength(1);
-      expect(detected[0].type).toBe('swarm');
+      expect(detected[0].type).toBe('team');
       expect(detected[0].keyword).toBe('coordinated agents');
     });
 
@@ -527,10 +527,10 @@ describe('Keyword Detector', () => {
       expect(primary!.type).toBe('ralph');
     });
 
-    it('should prioritize ultrapilot correctly', () => {
+    it('should prioritize team correctly (replaces deprecated ultrapilot)', () => {
       const primary = getPrimaryKeyword('ultrapilot this task');
       expect(primary).not.toBeNull();
-      expect(primary!.type).toBe('ultrapilot');
+      expect(primary!.type).toBe('team');
     });
 
     it('should prioritize ecomode correctly', () => {
@@ -539,10 +539,10 @@ describe('Keyword Detector', () => {
       expect(primary!.type).toBe('ecomode');
     });
 
-    it('should prioritize swarm correctly', () => {
+    it('should prioritize team correctly (replaces deprecated swarm)', () => {
       const primary = getPrimaryKeyword('swarm 5 agents for this');
       expect(primary).not.toBeNull();
-      expect(primary!.type).toBe('swarm');
+      expect(primary!.type).toBe('team');
     });
 
     it('should prioritize pipeline correctly', () => {

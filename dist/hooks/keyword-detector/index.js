@@ -30,15 +30,16 @@ const AUTOPILOT_PHRASE_PATTERNS = [
 ];
 /**
  * Keyword patterns for each mode
+ * Note: swarm and ultrapilot are deprecated and routed to team
  */
 const KEYWORD_PATTERNS = {
     cancel: /\b(cancelomc|stopomc)\b/i,
     ralph: /\b(ralph|don't stop|must complete|until done)\b/i,
     autopilot: /\b(autopilot|auto pilot|auto-pilot|autonomous|full auto|fullsend)\b/i,
-    ultrapilot: /\b(ultrapilot|ultra-pilot)\b|\bparallel\s+build\b|\bswarm\s+build\b/i,
+    // Team mode includes deprecated swarm/ultrapilot aliases
+    team: /\bteam\s+\d+\s+agents?\b|\bswarm\s+\d+\s+agents?\b|\bteam\s+mode\b|\bcoordinated\s+agents\b|\b(ultrapilot|ultra-pilot)\b|\bparallel\s+build\b|\bswarm\s+build\b/i,
     ultrawork: /\b(ultrawork|ulw|uw)\b/i,
     ecomode: /\b(eco|ecomode|eco-mode|efficient|save-tokens|budget)\b/i,
-    swarm: /\bswarm\s+\d+\s+agents?\b|\bcoordinated\s+agents\b/i,
     pipeline: /\b(pipeline)\b|\bchain\s+agents\b/i,
     ralplan: /\b(ralplan)\b/i,
     plan: /\bplan\s+(this|the)\b/i,
@@ -53,10 +54,11 @@ const KEYWORD_PATTERNS = {
 /**
  * Priority order for keyword detection
  * Higher priority keywords take precedence
+ * Note: 'team' replaces deprecated 'ultrapilot' and 'swarm'
  */
 const KEYWORD_PRIORITY = [
-    'cancel', 'ralph', 'autopilot', 'ultrapilot', 'ultrawork', 'ecomode',
-    'swarm', 'pipeline', 'ralplan', 'plan', 'tdd', 'research',
+    'cancel', 'ralph', 'autopilot', 'team', 'ultrawork', 'ecomode',
+    'pipeline', 'ralplan', 'plan', 'tdd', 'research',
     'ultrathink', 'deepsearch', 'analyze', 'codex', 'gemini'
 ];
 /**
@@ -159,8 +161,8 @@ export function getAllKeywords(text) {
     if (types.includes('ecomode') && types.includes('ultrawork') && isEcomodeEnabled()) {
         types = types.filter(t => t !== 'ultrawork');
     }
-    // Mutual exclusion: ultrapilot beats autopilot
-    if (types.includes('ultrapilot') && types.includes('autopilot')) {
+    // Mutual exclusion: team beats autopilot (team replaces deprecated ultrapilot)
+    if (types.includes('team') && types.includes('autopilot')) {
         types = types.filter(t => t !== 'autopilot');
     }
     // Sort by priority order
