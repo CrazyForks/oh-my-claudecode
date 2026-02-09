@@ -886,6 +886,18 @@ World`);
         expect(teamMatch).toBeDefined();
       });
 
+      it('should route bare swarm keyword to team', () => {
+        const result = detectKeywordsWithType('swarm fix errors');
+        const teamMatch = result.find((r) => r.type === 'team');
+        expect(teamMatch).toBeDefined();
+      });
+
+      it('should route swarm mode phrase to team', () => {
+        const result = detectKeywordsWithType('use swarm mode to fix this');
+        const teamMatch = result.find((r) => r.type === 'team');
+        expect(teamMatch).toBeDefined();
+      });
+
       it('should return team over autopilot when both present', () => {
         const result = getAllKeywords('autopilot team 3 agents fix');
         expect(result).toContain('team');

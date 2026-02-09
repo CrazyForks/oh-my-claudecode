@@ -161,5 +161,19 @@ describe('Builtin Skills', () => {
             });
         });
     });
+    describe('Deprecated skill wrappers', () => {
+        it('should have ultrapilot skill as deprecated wrapper', () => {
+            const skill = getBuiltinSkill('ultrapilot');
+            expect(skill).toBeDefined();
+            // The ultrapilot skill should be marked as deprecated and route to team
+            expect(skill?.template).toContain('DEPRECATED');
+            expect(skill?.template).toContain('team');
+        });
+        it('should have ultrapilot description indicating deprecation', () => {
+            const skill = getBuiltinSkill('ultrapilot');
+            expect(skill).toBeDefined();
+            expect(skill?.description).toContain('DEPRECATED');
+        });
+    });
 });
 //# sourceMappingURL=skills.test.js.map

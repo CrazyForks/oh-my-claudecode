@@ -330,14 +330,17 @@ async function main() {
     }
 
     // Team keywords (includes deprecated swarm/ultrapilot routing)
+    // Note: bare "swarm" and "swarm mode" also route to team
     const teamMatch = cleanPrompt.match(/\bteam\s+(\d+)\s+agents?\b/i) ||
                       cleanPrompt.match(/\bswarm\s+(\d+)\s+agents?\b/i);
     if (teamMatch ||
         /\bteam\s+mode\b/i.test(cleanPrompt) ||
+        /\bswarm\s+mode\b/i.test(cleanPrompt) ||
         /\bcoordinated\s+agents\b/i.test(cleanPrompt) ||
         /\b(ultrapilot|ultra-pilot)\b/i.test(cleanPrompt) ||
         /\bparallel\s+build\b/i.test(cleanPrompt) ||
-        /\bswarm\s+build\b/i.test(cleanPrompt)) {
+        /\bswarm\s+build\b/i.test(cleanPrompt) ||
+        /\bswarm\b/i.test(cleanPrompt)) {
       const agentCount = teamMatch ? teamMatch[1] : '3';
       matches.push({ name: 'team', args: agentCount });
     }
