@@ -23,7 +23,7 @@ export declare const VERSION_FILE: string;
  */
 export declare const CORE_COMMANDS: string[];
 /** Current version */
-export declare const VERSION = "4.1.4";
+export declare const VERSION = "4.1.5";
 /** Installation result */
 export interface InstallResult {
     success: boolean;
@@ -44,6 +44,7 @@ export interface InstallOptions {
     verbose?: boolean;
     skipClaudeCheck?: boolean;
     forceHooks?: boolean;
+    refreshHooksInPlugin?: boolean;
 }
 /**
  * Detect whether a hook command belongs to oh-my-claudecode.
