@@ -41,7 +41,7 @@ describe('prompt_file-only enforcement', () => {
     it('should return error for invalid agent_role', async () => {
       const result = await handleAskCodex({
         prompt_file: 'some-file.md',
-        agent_role: 'invalid-role',
+        agent_role: 'invalid_role', // underscore is not allowed (security check)
         output_file: '/tmp/test-output.md',
       });
       expect(result.isError).toBe(true);
@@ -74,7 +74,7 @@ describe('prompt_file-only enforcement', () => {
     it('should return error for invalid agent_role', async () => {
       const result = await handleAskGemini({
         prompt_file: 'some-file.md',
-        agent_role: 'invalid-role',
+        agent_role: 'invalid_role', // underscore is not allowed (security check)
         output_file: '/tmp/test-output.md',
       });
       expect(result.isError).toBe(true);
