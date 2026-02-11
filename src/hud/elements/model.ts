@@ -15,9 +15,14 @@ import type { ModelFormat } from '../types.js';
  *       'claude-haiku-4-5-20251001' -> '4.5'
  */
 function extractVersion(modelId: string): string | null {
-  // Match patterns like opus-4-6, sonnet-4-5, haiku-4-5
-  const match = modelId.match(/(?:opus|sonnet|haiku)-(\d+)-(\d+)/i);
-  if (match) return `${match[1]}.${match[2]}`;
+  // Match hyphenated ID patterns like opus-4-6, sonnet-4-5, haiku-4-5
+  const idMatch = modelId.match(/(?:opus|sonnet|haiku)-(\d+)-(\d+)/i);
+  if (idMatch) return `${idMatch[1]}.${idMatch[2]}`;
+
+  // Match display name patterns like "Sonnet 4.5", "Opus 4.6"
+  const displayMatch = modelId.match(/(?:opus|sonnet|haiku)\s+(\d+(?:\.\d+)?)/i);
+  if (displayMatch) return displayMatch[1];
+
   return null;
 }
 
