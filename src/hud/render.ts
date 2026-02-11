@@ -127,7 +127,7 @@ export async function render(context: HudRenderContext, config: HudConfig): Prom
       // If showBudgetWarning is explicitly set, use it; otherwise default to true (backward compat)
       const showBudgetAnalytics = enabledElements.showBudgetWarning ?? true;
       if (showBudgetAnalytics && enabledElements.showCost) {
-        const budgetWarning = renderBudgetWarning(context.sessionHealth);
+        const budgetWarning = renderBudgetWarning(context.sessionHealth, config.thresholds);
         if (budgetWarning) lines.push(budgetWarning);
       }
     }
@@ -217,7 +217,7 @@ export async function render(context: HudRenderContext, config: HudConfig): Prom
     // If showBudgetWarning is explicitly set, use it; otherwise default to true (backward compat)
     const showBudget = enabledElements.showBudgetWarning ?? true;
     if (showBudget && enabledElements.showCost) {
-      const warning = renderBudgetWarning(context.sessionHealth);
+      const warning = renderBudgetWarning(context.sessionHealth, config.thresholds);
       if (warning) detailLines.push(warning);
     }
   }
