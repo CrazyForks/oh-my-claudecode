@@ -7,8 +7,10 @@ provider_azure_available() {
 
 provider_azure_detect_ref() {
     local ref="$1"
-    # Matches Azure DevOps URLs
-    [[ "$ref" =~ ^https://dev\.azure\.com/ ]]
+    [[ "$ref" =~ ^https://dev\.azure\.com/ ]] || \
+    [[ "$ref" =~ ^git@ssh\.dev\.azure\.com: ]] || \
+    [[ "$ref" =~ \.visualstudio\.com/ ]] || \
+    [[ "$ref" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+#[0-9]+$ ]]
 }
 
 provider_azure_fetch_pr() {
@@ -26,6 +28,7 @@ provider_azure_fetch_issue() {
 provider_azure_pr_merged() {
     local pr_number="$1"
     local repo="$2"
+    command -v az >/dev/null 2>&1 || return 1
     command -v jq >/dev/null 2>&1 || return 1
     local status
     status=$(az repos pr show --id "$pr_number" --output json 2>/dev/null | jq -r '.status // empty')
@@ -35,6 +38,7 @@ provider_azure_pr_merged() {
 provider_azure_issue_closed() {
     local issue_number="$1"
     local repo="$2"
+    command -v az >/dev/null 2>&1 || return 1
     command -v jq >/dev/null 2>&1 || return 1
     local state
     state=$(az boards work-item show --id "$issue_number" --output json 2>/dev/null | jq -r '.fields["System.State"] // empty')

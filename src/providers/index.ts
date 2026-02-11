@@ -22,38 +22,38 @@ let providerRegistry: Map<ProviderName, GitProvider> | null = null;
 export function detectProvider(remoteUrl: string): ProviderName {
   const url = remoteUrl.toLowerCase();
 
+  // Extract host portion for accurate matching
+  const hostMatch = url.match(/^(?:https?:\/\/|ssh:\/\/[^@]*@|[^@]+@)([^/:]+)/);
+  const host = hostMatch ? hostMatch[1].toLowerCase() : '';
+
   // Azure DevOps (check before generic patterns)
-  if (url.includes('dev.azure.com') || url.includes('ssh.dev.azure.com') || url.includes('visualstudio.com')) {
+  if (host.includes('dev.azure.com') || host.includes('ssh.dev.azure.com') || host.endsWith('.visualstudio.com')) {
     return 'azure-devops';
   }
 
   // GitHub
-  if (url.includes('github.com')) {
+  if (host === 'github.com') {
     return 'github';
   }
 
   // GitLab (SaaS)
-  if (url.includes('gitlab.com')) {
+  if (host === 'gitlab.com') {
     return 'gitlab';
   }
 
   // Bitbucket
-  if (url.includes('bitbucket.org')) {
+  if (host === 'bitbucket.org') {
     return 'bitbucket';
   }
 
-  // Self-hosted heuristics — match hostname labels only, not path/query
-  // Extract host portion: for SCP-style (git@host:...) or URL-style
-  const hostMatch = url.match(/^(?:https?:\/\/|ssh:\/\/[^@]*@|[^@]+@)([^/:]+)/);
-  const host = hostMatch ? hostMatch[1].toLowerCase() : url.toLowerCase();
-
-  if (/(^|[.-])gitlab([.-]|$)/i.test(host)) {
+  // Self-hosted heuristics — match hostname labels only
+  if (/(^|[.-])gitlab([.-]|$)/.test(host)) {
     return 'gitlab';
   }
-  if (/(^|[.-])gitea([.-]|$)/i.test(host)) {
+  if (/(^|[.-])gitea([.-]|$)/.test(host)) {
     return 'gitea';
   }
-  if (/(^|[.-])forgejo([.-]|$)/i.test(host)) {
+  if (/(^|[.-])forgejo([.-]|$)/.test(host)) {
     return 'forgejo';
   }
 
@@ -202,7 +202,7 @@ function initRegistry(): Map<ProviderName, GitProvider> {
     ['bitbucket', new BitbucketProvider()],
     ['azure-devops', new AzureDevOpsProvider()],
     ['gitea', new GiteaProvider()],
-    ['forgejo', new GiteaProvider()],
+    ['forgejo', new GiteaProvider({ name: 'forgejo', displayName: 'Forgejo' })],
   ]);
 
   return providerRegistry;

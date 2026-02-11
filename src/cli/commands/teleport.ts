@@ -133,6 +133,20 @@ function parseRef(ref: string): {
     };
   }
 
+  // Azure DevOps legacy: https://{org}.visualstudio.com/{project}/_git/{repo}/pullrequest/{id}
+  const azureLegacyPrMatch = ref.match(
+    /^https?:\/\/([^.]+)\.visualstudio\.com\/([^/]+)\/_git\/([^/]+)\/pullrequest\/(\d+)/i
+  );
+  if (azureLegacyPrMatch) {
+    return {
+      type: 'pr',
+      provider: 'azure-devops',
+      owner: `${azureLegacyPrMatch[1]}/${azureLegacyPrMatch[2]}`,
+      repo: azureLegacyPrMatch[3],
+      number: parseInt(azureLegacyPrMatch[4], 10),
+    };
+  }
+
   // owner/repo!123 format (GitLab MR shorthand, supports nested groups)
   const gitlabShorthand = ref.match(/^(.+?)\/([^!/]+)!(\d+)$/);
   if (gitlabShorthand) {
@@ -145,8 +159,8 @@ function parseRef(ref: string): {
     };
   }
 
-  // owner/repo#123 format (provider-agnostic)
-  const fullRefMatch = ref.match(/^([^/]+)\/([^#]+)#(\d+)$/);
+  // owner/repo#123 format (provider-agnostic, supports nested groups)
+  const fullRefMatch = ref.match(/^(.+)\/([^/#]+)#(\d+)$/);
   if (fullRefMatch) {
     return {
       type: 'issue', // Will be refined by provider CLI

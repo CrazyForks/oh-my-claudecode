@@ -34,8 +34,28 @@ describe('detectProvider', () => {
     expect(detectProvider('git@ssh.dev.azure.com:v3/org/project/repo')).toBe('azure-devops');
   });
 
+  it('should detect Azure DevOps from legacy visualstudio.com HTTPS', () => {
+    expect(detectProvider('https://myorg.visualstudio.com/MyProject/_git/MyRepo')).toBe('azure-devops');
+  });
+
   it('detects self-hosted GitLab by hostname heuristic', () => {
     expect(detectProvider('https://my-gitlab.company.com/group/repo.git')).toBe('gitlab');
+  });
+
+  it('should detect Gitea from self-hosted hostname', () => {
+    expect(detectProvider('https://gitea.example.com/owner/repo')).toBe('gitea');
+  });
+
+  it('should detect Forgejo from self-hosted hostname', () => {
+    expect(detectProvider('https://forgejo.example.org/owner/repo')).toBe('forgejo');
+  });
+
+  it('should detect Gitea from subdomain', () => {
+    expect(detectProvider('git@my-gitea.company.com:owner/repo.git')).toBe('gitea');
+  });
+
+  it('should not false-positive on unrelated hostnames', () => {
+    expect(detectProvider('https://example.com/owner/repo')).toBe('unknown');
   });
 
   it('returns unknown for unrecognized hosts', () => {
@@ -91,6 +111,16 @@ describe('parseRemoteUrl', () => {
       host: 'dev.azure.com',
       owner: 'org/project',
       repo: 'repo',
+    });
+  });
+
+  it('should parse Azure DevOps legacy visualstudio.com HTTPS URL', () => {
+    const result = parseRemoteUrl('https://myorg.visualstudio.com/MyProject/_git/MyRepo');
+    expect(result).toEqual({
+      provider: 'azure-devops',
+      host: 'myorg.visualstudio.com',
+      owner: 'myorg/MyProject',
+      repo: 'MyRepo',
     });
   });
 

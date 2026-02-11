@@ -1,11 +1,28 @@
 import { execFileSync } from 'node:child_process';
-import type { GitProvider, PRInfo, IssueInfo } from './types.js';
+import type { GitProvider, PRInfo, IssueInfo, ProviderName } from './types.js';
+
+function validateGiteaUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    const host = u.hostname.toLowerCase();
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.endsWith('.local')) return null;
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
 
 export class GiteaProvider implements GitProvider {
-  readonly name = 'gitea' as const;
-  readonly displayName = 'Gitea';
+  readonly name: ProviderName;
+  readonly displayName: string;
   readonly prTerminology = 'PR' as const;
   readonly prRefspec = null;
+
+  constructor(options?: { name?: 'gitea' | 'forgejo'; displayName?: string }) {
+    this.name = options?.name ?? 'gitea';
+    this.displayName = options?.displayName ?? 'Gitea';
+  }
 
   detectFromRemote(_url: string): boolean {
     // Self-hosted: can't reliably detect from URL patterns alone
@@ -55,7 +72,7 @@ export class GiteaProvider implements GitProvider {
   }
 
   private viewPRviaRest(number: number, owner?: string, repo?: string): PRInfo | null {
-    const baseUrl = process.env.GITEA_URL;
+    const baseUrl = validateGiteaUrl(process.env.GITEA_URL ?? '');
     const token = process.env.GITEA_TOKEN;
     if (!baseUrl || !owner || !repo) return null;
 
@@ -106,7 +123,7 @@ export class GiteaProvider implements GitProvider {
   }
 
   private viewIssueviaRest(number: number, owner?: string, repo?: string): IssueInfo | null {
-    const baseUrl = process.env.GITEA_URL;
+    const baseUrl = validateGiteaUrl(process.env.GITEA_URL ?? '');
     if (!baseUrl || !owner || !repo) return null;
 
     try {
@@ -146,6 +163,6 @@ export class GiteaProvider implements GitProvider {
   }
 
   getRequiredCLI(): string | null {
-    return 'tea';
+    return null;
   }
 }

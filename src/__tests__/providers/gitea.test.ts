@@ -40,8 +40,14 @@ describe('GiteaProvider', () => {
       expect(provider.prRefspec).toBeNull();
     });
 
-    it('requires tea CLI', () => {
-      expect(provider.getRequiredCLI()).toBe('tea');
+    it('does not require a specific CLI (has REST fallback)', () => {
+      expect(provider.getRequiredCLI()).toBeNull();
+    });
+
+    it('supports Forgejo identity via constructor', () => {
+      const forgejo = new GiteaProvider({ name: 'forgejo', displayName: 'Forgejo' });
+      expect(forgejo.name).toBe('forgejo');
+      expect(forgejo.displayName).toBe('Forgejo');
     });
   });
 
