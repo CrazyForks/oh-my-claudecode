@@ -183,4 +183,29 @@ describe('Builtin Skills', () => {
       });
     });
   });
+
+  describe('Command files (plugin skill dispatch)', () => {
+    it('should not contain self-referential deprecation stubs (issue #588)', () => {
+      // When Claude Code plugin resolves /oh-my-claudecode:X, it reads commands/X.md.
+      // If that file says "use /oh-my-claudecode:X", the model re-invokes the same
+      // skill, creating an infinite loop. Verify no command file contains this pattern.
+      const { readdirSync, readFileSync, existsSync } = require('fs');
+      const { join, dirname } = require('path');
+      const { fileURLToPath } = require('url');
+
+      // Resolve commands directory relative to project root
+      const projectRoot = join(__dirname, '..', '..');
+      const commandsDir = join(projectRoot, 'commands');
+
+      if (!existsSync(commandsDir)) return; // OK if commands/ doesn't exist
+
+      const deprecationPattern = /This command is deprecated\.\s*Invoke the skill instead/i;
+      const files = readdirSync(commandsDir).filter((f: string) => f.endsWith('.md'));
+
+      for (const file of files) {
+        const content = readFileSync(join(commandsDir, file), 'utf-8');
+        expect(content).not.toMatch(deprecationPattern);
+      }
+    });
+  });
 });
