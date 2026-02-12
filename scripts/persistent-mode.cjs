@@ -609,7 +609,27 @@ async function main() {
       return;
     }
 
-    // No blocking needed
+    // No blocking needed — Claude is truly idle.
+    // Send session-idle notification (non-blocking) unless user abort or context limit
+    // (those cases already returned early above).
+    if (sessionId) {
+      try {
+        const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+        if (pluginRoot) {
+          const { pathToFileURL } = require('url');
+          import(pathToFileURL(join(pluginRoot, 'dist', 'notifications', 'index.js')).href)
+            .then(({ notify }) =>
+              notify('session-idle', {
+                sessionId,
+                projectPath: directory,
+              }).catch(() => {})
+            )
+            .catch(() => {});
+        }
+      } catch {
+        // Notification module not available, skip silently
+      }
+    }
     console.log(JSON.stringify({ continue: true, suppressOutput: true }));
   } catch (error) {
     // On any error, allow stop rather than blocking forever
