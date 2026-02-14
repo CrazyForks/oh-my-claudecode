@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { execFileSync } from 'child_process';
 import { processHook, resetSkipHooksCache, requiredKeysForHook, } from '../bridge.js';
 // ============================================================================
 // Hook Routing Tests
@@ -113,6 +114,7 @@ describe('processHook - Routing Matrix', () => {
         it('should activate ralph and linked ultrawork when Skill tool invokes ralph', async () => {
             const tempDir = mkdtempSync(join(tmpdir(), 'bridge-routing-ralph-'));
             try {
+                execFileSync('git', ['init'], { cwd: tempDir, stdio: 'pipe' });
                 const sessionId = 'test-session';
                 const input = {
                     sessionId,
