@@ -23,6 +23,7 @@ import type { RateLimits } from './types.js';
 const CACHE_TTL_SUCCESS_MS = 30 * 1000; // 30 seconds for successful responses
 const CACHE_TTL_FAILURE_MS = 15 * 1000; // 15 seconds for failures
 const API_TIMEOUT_MS = 10000;
+const CUSTOM_CMD_TIMEOUT_MS = 2000; // 2 seconds for OMC_HUD_RATE_LIMIT_CMD
 const TOKEN_REFRESH_URL_HOSTNAME = 'platform.claude.com';
 const TOKEN_REFRESH_URL_PATH = '/v1/oauth/token';
 
@@ -559,6 +560,127 @@ export function parseZaiResponse(response: ZaiQuotaResponse): RateLimits | null 
   };
 }
 
+// ============================================================================
+// Custom rate limit command (OMC_HUD_RATE_LIMIT_CMD)
+// ============================================================================
+
+interface CustomUsageCache {
+  timestamp: number;
+  percent: number | null;
+  resetsAt: string | null;
+  label?: string;
+  error?: boolean;
+}
+
+function getCustomCachePath(): string {
+  return join(getClaudeConfigDir(), 'plugins', 'oh-my-claudecode', '.custom-rate-cache.json');
+}
+
+function readCustomCache(): CustomUsageCache | null {
+  try {
+    const p = getCustomCachePath();
+    if (!existsSync(p)) return null;
+    return JSON.parse(readFileSync(p, 'utf-8')) as CustomUsageCache;
+  } catch {
+    return null;
+  }
+}
+
+function writeCustomCache(cache: CustomUsageCache): void {
+  try {
+    const p = getCustomCachePath();
+    const dir = dirname(p);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(p, JSON.stringify(cache, null, 2));
+  } catch {
+    // Ignore cache write errors
+  }
+}
+
+function isCustomCacheValid(cache: CustomUsageCache): boolean {
+  const ttl = cache.error ? CACHE_TTL_FAILURE_MS : CACHE_TTL_SUCCESS_MS;
+  return Date.now() - cache.timestamp < ttl;
+}
+
+/**
+ * Execute OMC_HUD_RATE_LIMIT_CMD and return parsed result.
+ *
+ * The command must print a single JSON object to stdout:
+ *   { used: number, limit: number, reset?: number|string, label?: string }
+ *
+ * `reset` may be a Unix timestamp (seconds or milliseconds) or an ISO 8601 string.
+ * `label` is the display prefix shown in the HUD (defaults to "cmd").
+ *
+ * Runs synchronously with a 2-second timeout. Results are cached for 30 s (success)
+ * or 15 s (failure) using a separate file from the built-in provider cache.
+ *
+ * Returns null when the env var is unset, the command fails, or the output is invalid.
+ */
+function fetchCustomRateLimits(): { percent: number; resetsAt: Date | null; label: string | undefined } | null {
+  const cmd = process.env.OMC_HUD_RATE_LIMIT_CMD;
+  if (!cmd) return null;
+
+  // Check cache first
+  const cache = readCustomCache();
+  if (cache && isCustomCacheValid(cache)) {
+    if (cache.percent == null) return null;
+    return {
+      percent: cache.percent,
+      resetsAt: cache.resetsAt ? new Date(cache.resetsAt) : null,
+      label: cache.label,
+    };
+  }
+
+  try {
+    const stdout = execSync(cmd, {
+      encoding: 'utf-8',
+      timeout: CUSTOM_CMD_TIMEOUT_MS,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+
+    const parsed = JSON.parse(stdout) as { used?: unknown; limit?: unknown; reset?: unknown; label?: unknown };
+
+    if (typeof parsed.used !== 'number' || typeof parsed.limit !== 'number' || parsed.limit <= 0) {
+      writeCustomCache({ timestamp: Date.now(), percent: null, resetsAt: null, error: true });
+      return null;
+    }
+
+    const percent = clamp((parsed.used / parsed.limit) * 100);
+
+    let resetsAt: Date | null = null;
+    if (parsed.reset != null) {
+      if (typeof parsed.reset === 'number') {
+        // Auto-detect seconds vs milliseconds: values > 1e12 are treated as ms
+        const ms = parsed.reset > 1e12 ? parsed.reset : parsed.reset * 1000;
+        const d = new Date(ms);
+        if (!isNaN(d.getTime())) resetsAt = d;
+      } else if (typeof parsed.reset === 'string') {
+        const d = new Date(parsed.reset);
+        if (!isNaN(d.getTime())) resetsAt = d;
+      }
+    }
+
+    const label = typeof parsed.label === 'string' && parsed.label.length > 0
+      ? parsed.label
+      : undefined;
+
+    writeCustomCache({
+      timestamp: Date.now(),
+      percent,
+      resetsAt: resetsAt?.toISOString() ?? null,
+      label,
+    });
+
+    return { percent, resetsAt, label };
+  } catch {
+    if (process.env.OMC_DEBUG) {
+      console.error('[usage-api] OMC_HUD_RATE_LIMIT_CMD execution failed');
+    }
+    writeCustomCache({ timestamp: Date.now(), percent: null, resetsAt: null, error: true });
+    return null;
+  }
+}
+
 /**
  * Get usage data (with caching)
  *
@@ -566,6 +688,7 @@ export function parseZaiResponse(response: ZaiQuotaResponse): RateLimits | null 
  * - No OAuth credentials available (API users)
  * - Credentials expired
  * - API call failed
+ * - No OMC_HUD_RATE_LIMIT_CMD set
  */
 export async function getUsage(): Promise<RateLimits | null> {
   const baseUrl = process.env.ANTHROPIC_BASE_URL;
@@ -573,62 +696,65 @@ export async function getUsage(): Promise<RateLimits | null> {
   const isZai = baseUrl != null && isZaiHost(baseUrl);
   const currentSource: 'anthropic' | 'zai' = isZai && authToken ? 'zai' : 'anthropic';
 
+  let builtinLimits: RateLimits | null = null;
+
   // Check cache first (source must match to avoid cross-provider stale data)
   const cache = readCache();
   if (cache && isCacheValid(cache) && cache.source === currentSource) {
-    return cache.data;
-  }
-
-  // z.ai path (must precede OAuth check to avoid stale Anthropic credentials)
-  if (isZai && authToken) {
+    builtinLimits = cache.data;
+  } else if (isZai && authToken) {
+    // z.ai path (must precede OAuth check to avoid stale Anthropic credentials)
     const response = await fetchUsageFromZai();
-    if (!response) {
+    if (response) {
+      builtinLimits = parseZaiResponse(response);
+      writeCache(builtinLimits, !builtinLimits, 'zai');
+    } else {
       writeCache(null, true, 'zai');
-      return null;
     }
-
-    const usage = parseZaiResponse(response);
-    writeCache(usage, !usage, 'zai');
-    return usage;
-  }
-
-  // Anthropic OAuth path (official Claude Code support)
-  let creds = getCredentials();
-  if (creds) {
-    // If credentials are expired, attempt token refresh
-    if (!validateCredentials(creds)) {
-      if (creds.refreshToken) {
-        const refreshed = await refreshAccessToken(creds.refreshToken);
-        if (refreshed) {
-          // Update in-memory credentials
-          creds = { ...creds, ...refreshed };
-          // Persist refreshed credentials back to store
-          writeBackCredentials(creds);
+  } else {
+    // Anthropic OAuth path (official Claude Code support)
+    let creds = getCredentials();
+    if (creds) {
+      // If credentials are expired, attempt token refresh
+      if (!validateCredentials(creds)) {
+        if (creds.refreshToken) {
+          const refreshed = await refreshAccessToken(creds.refreshToken);
+          if (refreshed) {
+            creds = { ...creds, ...refreshed };
+            writeBackCredentials(creds);
+          } else {
+            creds = null;
+          }
         } else {
-          // Refresh failed - no credentials available
           creds = null;
         }
+      }
+
+      if (creds) {
+        const response = await fetchUsageFromApi(creds.accessToken);
+        if (response) {
+          builtinLimits = parseUsageResponse(response);
+          writeCache(builtinLimits, !builtinLimits, 'anthropic');
+        } else {
+          writeCache(null, true, 'anthropic');
+        }
       } else {
-        // No refresh token available
-        creds = null;
-      }
-    }
-
-    // If we still have valid credentials, use Anthropic OAuth flow
-    if (creds) {
-      const response = await fetchUsageFromApi(creds.accessToken);
-      if (!response) {
         writeCache(null, true, 'anthropic');
-        return null;
       }
-
-      const usage = parseUsageResponse(response);
-      writeCache(usage, !usage, 'anthropic');
-      return usage;
+    } else {
+      writeCache(null, true, 'anthropic');
     }
   }
 
-  // No credentials available
-  writeCache(null, true, 'anthropic');
-  return null;
+  // Merge custom rate limit from OMC_HUD_RATE_LIMIT_CMD (if configured)
+  const customResult = fetchCustomRateLimits();
+  if (customResult != null) {
+    const merged: RateLimits = builtinLimits ? { ...builtinLimits } : {};
+    merged.customPercent = customResult.percent;
+    merged.customResetsAt = customResult.resetsAt;
+    merged.customLabel = customResult.label;
+    return merged;
+  }
+
+  return builtinLimits;
 }

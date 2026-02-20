@@ -58,20 +58,24 @@ function formatResetTime(date: Date | null | undefined): string | null {
 /**
  * Render rate limits display.
  *
- * Format: 5h:45%(3h42m) wk:12%(2d5h) mo:8%(15d3h)
+ * Format: 5h:45%(3h42m) wk:12%(2d5h) mo:8%(15d3h) cmd:30%(1h20m)
  */
 export function renderRateLimits(limits: RateLimits | null): string | null {
   if (!limits) return null;
 
-  const fiveHour = Math.min(100, Math.max(0, Math.round(limits.fiveHourPercent)));
-  const fiveHourColor = getColor(fiveHour);
-  const fiveHourReset = formatResetTime(limits.fiveHourResetsAt);
+  const parts: string[] = [];
 
-  const fiveHourPart = fiveHourReset
-    ? `5h:${fiveHourColor}${fiveHour}%${RESET}${DIM}(${fiveHourReset})${RESET}`
-    : `5h:${fiveHourColor}${fiveHour}%${RESET}`;
+  if (limits.fiveHourPercent != null) {
+    const fiveHour = Math.min(100, Math.max(0, Math.round(limits.fiveHourPercent)));
+    const fiveHourColor = getColor(fiveHour);
+    const fiveHourReset = formatResetTime(limits.fiveHourResetsAt);
 
-  const parts = [fiveHourPart];
+    const fiveHourPart = fiveHourReset
+      ? `5h:${fiveHourColor}${fiveHour}%${RESET}${DIM}(${fiveHourReset})${RESET}`
+      : `5h:${fiveHourColor}${fiveHour}%${RESET}`;
+
+    parts.push(fiveHourPart);
+  }
 
   if (limits.weeklyPercent != null) {
     const weekly = Math.min(100, Math.max(0, Math.round(limits.weeklyPercent)));
@@ -97,21 +101,38 @@ export function renderRateLimits(limits: RateLimits | null): string | null {
     parts.push(monthlyPart);
   }
 
+  if (limits.customPercent != null) {
+    const custom = Math.min(100, Math.max(0, Math.round(limits.customPercent)));
+    const customColor = getColor(custom);
+    const customReset = formatResetTime(limits.customResetsAt);
+    const customLabel = limits.customLabel || 'cmd';
+
+    const customPart = customReset
+      ? `${DIM}${customLabel}:${RESET}${customColor}${custom}%${RESET}${DIM}(${customReset})${RESET}`
+      : `${DIM}${customLabel}:${RESET}${customColor}${custom}%${RESET}`;
+
+    parts.push(customPart);
+  }
+
+  if (parts.length === 0) return null;
   return parts.join(' ');
 }
 
 /**
  * Render compact rate limits (just percentages).
  *
- * Format: 45%/12% or 45%/12%/8% (with monthly)
+ * Format: 45%/12% or 45%/12%/8% (with monthly) or 45%/30% (with custom)
  */
 export function renderRateLimitsCompact(limits: RateLimits | null): string | null {
   if (!limits) return null;
 
-  const fiveHour = Math.min(100, Math.max(0, Math.round(limits.fiveHourPercent)));
-  const fiveHourColor = getColor(fiveHour);
+  const parts: string[] = [];
 
-  const parts = [`${fiveHourColor}${fiveHour}%${RESET}`];
+  if (limits.fiveHourPercent != null) {
+    const fiveHour = Math.min(100, Math.max(0, Math.round(limits.fiveHourPercent)));
+    const fiveHourColor = getColor(fiveHour);
+    parts.push(`${fiveHourColor}${fiveHour}%${RESET}`);
+  }
 
   if (limits.weeklyPercent != null) {
     const weekly = Math.min(100, Math.max(0, Math.round(limits.weeklyPercent)));
@@ -125,13 +146,20 @@ export function renderRateLimitsCompact(limits: RateLimits | null): string | nul
     parts.push(`${monthlyColor}${monthly}%${RESET}`);
   }
 
+  if (limits.customPercent != null) {
+    const custom = Math.min(100, Math.max(0, Math.round(limits.customPercent)));
+    const customColor = getColor(custom);
+    parts.push(`${customColor}${custom}%${RESET}`);
+  }
+
+  if (parts.length === 0) return null;
   return parts.join('/');
 }
 
 /**
  * Render rate limits with visual progress bars.
  *
- * Format: 5h:[████░░░░░░]45%(3h42m) wk:[█░░░░░░░░░]12%(2d5h) mo:[░░░░░░░░░░]8%(15d3h)
+ * Format: 5h:[████░░░░░░]45%(3h42m) wk:[█░░░░░░░░░]12%(2d5h) mo:[░░░░░░░░░░]8%(15d3h) cmd:[███░░░░░░░]30%
  */
 export function renderRateLimitsWithBar(
   limits: RateLimits | null,
@@ -139,18 +167,22 @@ export function renderRateLimitsWithBar(
 ): string | null {
   if (!limits) return null;
 
-  const fiveHour = Math.min(100, Math.max(0, Math.round(limits.fiveHourPercent)));
-  const fiveHourColor = getColor(fiveHour);
-  const fiveHourFilled = Math.round((fiveHour / 100) * barWidth);
-  const fiveHourEmpty = barWidth - fiveHourFilled;
-  const fiveHourBar = `${fiveHourColor}${'█'.repeat(fiveHourFilled)}${DIM}${'░'.repeat(fiveHourEmpty)}${RESET}`;
-  const fiveHourReset = formatResetTime(limits.fiveHourResetsAt);
+  const parts: string[] = [];
 
-  const fiveHourPart = fiveHourReset
-    ? `5h:[${fiveHourBar}]${fiveHourColor}${fiveHour}%${RESET}${DIM}(${fiveHourReset})${RESET}`
-    : `5h:[${fiveHourBar}]${fiveHourColor}${fiveHour}%${RESET}`;
+  if (limits.fiveHourPercent != null) {
+    const fiveHour = Math.min(100, Math.max(0, Math.round(limits.fiveHourPercent)));
+    const fiveHourColor = getColor(fiveHour);
+    const fiveHourFilled = Math.round((fiveHour / 100) * barWidth);
+    const fiveHourEmpty = barWidth - fiveHourFilled;
+    const fiveHourBar = `${fiveHourColor}${'█'.repeat(fiveHourFilled)}${DIM}${'░'.repeat(fiveHourEmpty)}${RESET}`;
+    const fiveHourReset = formatResetTime(limits.fiveHourResetsAt);
 
-  const parts = [fiveHourPart];
+    const fiveHourPart = fiveHourReset
+      ? `5h:[${fiveHourBar}]${fiveHourColor}${fiveHour}%${RESET}${DIM}(${fiveHourReset})${RESET}`
+      : `5h:[${fiveHourBar}]${fiveHourColor}${fiveHour}%${RESET}`;
+
+    parts.push(fiveHourPart);
+  }
 
   if (limits.weeklyPercent != null) {
     const weekly = Math.min(100, Math.max(0, Math.round(limits.weeklyPercent)));
@@ -182,5 +214,22 @@ export function renderRateLimitsWithBar(
     parts.push(monthlyPart);
   }
 
+  if (limits.customPercent != null) {
+    const custom = Math.min(100, Math.max(0, Math.round(limits.customPercent)));
+    const customColor = getColor(custom);
+    const customFilled = Math.round((custom / 100) * barWidth);
+    const customEmpty = barWidth - customFilled;
+    const customBar = `${customColor}${'█'.repeat(customFilled)}${DIM}${'░'.repeat(customEmpty)}${RESET}`;
+    const customReset = formatResetTime(limits.customResetsAt);
+    const customLabel = limits.customLabel || 'cmd';
+
+    const customPart = customReset
+      ? `${DIM}${customLabel}:${RESET}[${customBar}]${customColor}${custom}%${RESET}${DIM}(${customReset})${RESET}`
+      : `${DIM}${customLabel}:${RESET}[${customBar}]${customColor}${custom}%${RESET}`;
+
+    parts.push(customPart);
+  }
+
+  if (parts.length === 0) return null;
   return parts.join(' ');
 }

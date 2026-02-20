@@ -157,7 +157,7 @@ export interface PrdStateForHud {
 
 export interface RateLimits {
   /** 5-hour rolling window usage percentage (0-100) - all models combined */
-  fiveHourPercent: number;
+  fiveHourPercent?: number;
   /** Weekly usage percentage (0-100) - all models combined (undefined if not applicable) */
   weeklyPercent?: number;
   /** When the 5-hour limit resets (null if unavailable) */
@@ -179,6 +179,13 @@ export interface RateLimits {
   monthlyPercent?: number;
   /** When the monthly limit resets (null if unavailable) */
   monthlyResetsAt?: Date | null;
+
+  /** Custom rate limit from OMC_HUD_RATE_LIMIT_CMD (used/limit computed to percent) */
+  customPercent?: number;
+  /** When the custom limit resets (null if unavailable) */
+  customResetsAt?: Date | null;
+  /** Display label for custom rate limit entry (defaults to "cmd") */
+  customLabel?: string;
 }
 
 export interface HudRenderContext {
