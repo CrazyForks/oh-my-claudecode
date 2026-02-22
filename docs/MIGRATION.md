@@ -162,25 +162,11 @@ Work naturally. Claude detects intent and activates behaviors automatically:
 "commit these changes properly"                     # Auto-activates git expertise
 ```
 
-### Agent Name Mapping
+### Agent Naming Standard
 
-All agent names have been updated from Greek mythology references to intuitive, descriptive names:
+Agent naming is now strictly descriptive and role-based (for example: `architect`, `planner`, `analyst`, `critic`, `document-specialist`, `designer`, `writer`, `vision`, `executor`).
 
-| Old Name (Greek) | New Name (Intuitive) |
-|------------------|----------------------|
-| prometheus | planner |
-| momus | critic |
-| oracle | architect |
-| metis | analyst |
-| mnemosyne | learner |
-| sisyphus-junior | executor |
-| orchestrator-sisyphus | coordinator |
-| librarian | document-specialist |
-| frontend-engineer | designer |
-| document-writer | writer |
-| multimodal-looker | vision |
-| explore | explore (unchanged) |
-| qa-tester | qa-tester (unchanged) |
+Use canonical role names across prompts, commands, docs, and scripts. Avoid introducing alternate myth-style or legacy aliases in new content.
 
 ### Directory Migration
 

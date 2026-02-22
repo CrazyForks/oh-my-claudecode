@@ -46,8 +46,8 @@ async function main() {
   console.log('Example 2: Agent Definitions');
 
   const agents = getAgentDefinitions({
-    oracle: {
-      // Override oracle's prompt for a specific use case
+    architect: {
+      // Override architect's prompt for a specific use case
       prompt: 'You are a security-focused code reviewer...'
     }
   });
