@@ -6,7 +6,7 @@
  * Cross-platform: Windows, macOS, Linux
  */
 
-import { existsSync, readFileSync, readdirSync, rmSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, rmSync, mkdirSync, writeFileSync, symlinkSync, lstatSync, readlinkSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath, pathToFileURL } from 'url';
@@ -414,7 +414,10 @@ ${cleanContent}
       }
     }
 
-    // Cleanup old plugin cache versions (keep latest 2)
+    // Cleanup old plugin cache versions (keep latest 2, symlink the rest)
+    // Instead of deleting old versions, replace them with symlinks to the latest.
+    // This prevents "Cannot find module" errors for sessions started before a
+    // plugin update whose CLAUDE_PLUGIN_ROOT still points to the old version.
     try {
       const cacheBase = join(configDir, 'plugins', 'cache', 'omc', 'oh-my-claudecode');
       if (existsSync(cacheBase)) {
@@ -422,11 +425,31 @@ ${cleanContent}
           .filter(v => /^\d+\.\d+\.\d+/.test(v))
           .sort(semverCompare)
           .reverse();
-        const toRemove = versions.slice(2);
-        for (const version of toRemove) {
-          try {
-            rmSync(join(cacheBase, version), { recursive: true, force: true });
-          } catch {}
+
+        if (versions.length > 2) {
+          const latest = versions[0];
+          const toSymlink = versions.slice(2);
+          for (const version of toSymlink) {
+            try {
+              const versionPath = join(cacheBase, version);
+              const stat = lstatSync(versionPath);
+
+              if (stat.isSymbolicLink()) {
+                // Already a symlink — update only if pointing to wrong target
+                const target = readlinkSync(versionPath);
+                if (target === latest) continue;
+                unlinkSync(versionPath);
+              } else if (stat.isDirectory()) {
+                rmSync(versionPath, { recursive: true, force: true });
+              }
+
+              // Create relative symlink: e.g. 4.4.1 -> 4.4.3
+              symlinkSync(latest, versionPath);
+            } catch {
+              // If symlink creation fails (e.g. Windows without dev mode),
+              // leave the old directory in place — safer than deleting it.
+            }
+          }
         }
       }
     } catch {}

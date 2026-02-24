@@ -32,7 +32,7 @@ function dirent(name: string): { name: string; isDirectory: () => boolean } {
 }
 
 /** Return a stat result with mtime N ms ago */
-function staleStats(ageMs: number = 2 * 60 * 60 * 1000) {
+function staleStats(ageMs: number = 25 * 60 * 60 * 1000) {
   return { mtimeMs: Date.now() - ageMs } as ReturnType<typeof statSync>;
 }
 
