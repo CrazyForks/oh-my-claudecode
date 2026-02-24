@@ -11,6 +11,17 @@ import { join } from 'path';
 import { pathToFileURL } from 'url';
 import { readStdin } from './lib/stdin.mjs';
 
+const SESSION_ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,255}$/;
+const MODE_STATE_FILES = [
+  'autopilot-state.json',
+  'ultrapilot-state.json',
+  'ralph-state.json',
+  'ultrawork-state.json',
+  'ultraqa-state.json',
+  'pipeline-state.json',
+  'team-state.json',
+];
+
 // Simple JSON field extraction
 function extractJsonField(input, field, defaultValue = '') {
   try {
@@ -74,6 +85,57 @@ function getTodoStatus(directory) {
   return '';
 }
 
+function isValidSessionId(sessionId) {
+  return typeof sessionId === 'string' && SESSION_ID_PATTERN.test(sessionId);
+}
+
+function readJsonFile(filePath) {
+  try {
+    if (!existsSync(filePath)) return null;
+    return JSON.parse(readFileSync(filePath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function hasActiveJsonMode(stateDir, { allowSessionTagged = false } = {}) {
+  for (const file of MODE_STATE_FILES) {
+    const state = readJsonFile(join(stateDir, file));
+    if (!state || state.active !== true) continue;
+    if (!allowSessionTagged && state.session_id) continue;
+    return true;
+  }
+  return false;
+}
+
+function hasActiveSwarmMode(stateDir, { allowSessionTagged = false } = {}) {
+  const markerFile = join(stateDir, 'swarm-active.marker');
+  if (!existsSync(markerFile)) return false;
+
+  const summary = readJsonFile(join(stateDir, 'swarm-summary.json'));
+  if (!summary || summary.active !== true) return false;
+  if (!allowSessionTagged && summary.session_id) return false;
+
+  return true;
+}
+
+function hasActiveMode(directory, sessionId) {
+  const stateDir = join(directory, '.omc', 'state');
+
+  if (isValidSessionId(sessionId)) {
+    const sessionStateDir = join(stateDir, 'sessions', sessionId);
+    return (
+      hasActiveJsonMode(sessionStateDir, { allowSessionTagged: true }) ||
+      hasActiveSwarmMode(sessionStateDir, { allowSessionTagged: true })
+    );
+  }
+
+  return (
+    hasActiveJsonMode(stateDir, { allowSessionTagged: false }) ||
+    hasActiveSwarmMode(stateDir, { allowSessionTagged: false })
+  );
+}
+
 // Generate agent spawn message with metadata
 function generateAgentSpawnMessage(toolInput, directory, todoStatus) {
   if (!toolInput || typeof toolInput !== 'object') {
@@ -94,7 +156,7 @@ function generateAgentSpawnMessage(toolInput, directory, todoStatus) {
 }
 
 // Generate contextual message based on tool type
-function generateMessage(toolName, todoStatus) {
+function generateMessage(toolName, todoStatus, modeActive = false) {
   const messages = {
     TodoWrite: `${todoStatus}Mark todos in_progress BEFORE starting, completed IMMEDIATELY after finishing.`,
     Bash: `${todoStatus}Use parallel execution for independent tasks. Use run_in_background for long operations (npm install, builds, tests).`,
@@ -105,7 +167,9 @@ function generateMessage(toolName, todoStatus) {
     Glob: `${todoStatus}Combine searches in parallel when investigating multiple patterns.`,
   };
 
-  return messages[toolName] || `${todoStatus}The boulder never stops. Continue until all tasks complete.`;
+  if (messages[toolName]) return messages[toolName];
+  if (modeActive) return `${todoStatus}The boulder never stops. Continue until all tasks complete.`;
+  return '';
 }
 
 // Record Skill/Task invocations to flow trace (best-effort)
@@ -144,6 +208,14 @@ async function main() {
     try { data = JSON.parse(input); } catch {}
     recordToolInvocation(data, directory);
 
+    const sessionId =
+      typeof data.session_id === 'string'
+        ? data.session_id
+        : typeof data.sessionId === 'string'
+          ? data.sessionId
+          : '';
+    const modeActive = hasActiveMode(directory, sessionId);
+
     // Send notification when AskUserQuestion is about to execute (user input needed)
     // Fires in PreToolUse so users get notified BEFORE the tool blocks for input (#597)
     if (toolName === 'AskUserQuestion') {
@@ -176,7 +248,12 @@ async function main() {
       const toolInput = data.toolInput || data.tool_input || null;
       message = generateAgentSpawnMessage(toolInput, directory, todoStatus);
     } else {
-      message = generateMessage(toolName, todoStatus);
+      message = generateMessage(toolName, todoStatus, modeActive);
+    }
+
+    if (!message) {
+      console.log(JSON.stringify({ continue: true, suppressOutput: true }));
+      return;
     }
 
     console.log(JSON.stringify({
